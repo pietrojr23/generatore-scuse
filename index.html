@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Generatore di Scuse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div>
+      <h1>Generatore di Scuse</h1>
+      <p class="tagline">Scuse assurde o credibilmente perfette.</p>
+    </div>
+    <button id="settingsBtn" class="icon-btn" title="Impostazioni" aria-label="Impostazioni">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
+  </header>
+
+  <main class="content">
+
+    <section class="card">
+      <h2>Contesto</h2>
+      <div class="chips" id="scenarioChips">
+        <button class="chip active" data-scenario="Perché sono arrivato tardi?">⏰ Sono arrivato tardi</button>
+        <button class="chip" data-scenario="Perché non posso uscire?">🚪 Non posso uscire</button>
+        <button class="chip" data-scenario="custom">✏️ Altro…</button>
+      </div>
+      <div id="customWrap" class="hidden">
+        <input id="customInput" type="text" placeholder="Es. perché non ho risposto al telefono?…" maxlength="120" />
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Credibilità della scusa</h2>
+      <div class="slider-row">
+        <span id="credValue">50%</span>
+        <input id="credSlider" type="range" min="0" max="100" value="50" />
+      </div>
+      <div class="scale-labels"><span>Assurda</span><span>Tutto farebbe</span><span>Credibile</span></div>
+      <p class="hint" id="credHint">Credibile quanto basta…</p>
+    </section>
+
+    <section class="card">
+      <h2>Stile</h2>
+      <div class="chips">
+        <button class="chip active" data-tone="credibile">🎯 Credibile</button>
+        <button class="chip" data-tone="ironica">😏 Ironica</button>
+        <button class="chip" data-tone="assurda">🤪 Assurda</button>
+      </div>
+    </section>
+
+    <button id="generateBtn" class="generate-btn">
+      <span class="gen-icon">🎲</span>
+      <span id="genLabel">Genera scusa</span>
+    </button>
+
+    <div id="loading" class="loading hidden">
+      <div class="spinner"></div>
+      <p>L'IA sta preparando la tua scusa perfetta…</p>
+    </div>
+
+    <section id="resultCard" class="card result hidden">
+      <div class="result-head">
+        <span class="result-badge" id="resultBadge">50% credibilità</span>
+        <div class="result-actions">
+          <button id="copyBtn" class="small-btn" title="Copia">📋 Copia</button>
+          <button id="regenBtn" class="small-btn" title="Altra scusa">🔁</button>
+        </div>
+      </div>
+      <p id="resultText" class="result-text"></p>
+    </section>
+
+    <section id="historySection" class="card result hidden">
+      <h2>Ultime scuse</h2>
+      <ul id="historyList" class="history-list"></ul>
+      <button id="clearHistory" class="link-btn">Svuota cronologia</button>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p>Fatto per perdere tempo in modo intelligente · <span id="year"></span></p>
+  </footer>
+</div>
+
+<!-- Modal impostazioni -->
+<div id="settingsModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h2>⚙️ Impostazioni</h2>
+    <p class="modal-text">La app usa il modello di intelligenza artificiale di <strong>Groq</strong> per generare le scuse.<br />Inserisci la tua chiave una sola volta: viene salvata solo <em>su questo dispositivo</em> e non viene mai pubblicata.</p>
+    <label for="apiKeyInput" class="field-label">Chiave API Groq (<code>gsk_…</code>)</label>
+    <input id="apiKeyInput" type="password" placeholder="gsk_…" autocomplete="off" />
+    <p id="keyStatus" class="key-status"></p>
+    <div class="modal-actions">
+      <button id="saveKeyBtn" class="primary">Salva chiave</button>
+      <button id="closeModalBtn" class="ghost">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

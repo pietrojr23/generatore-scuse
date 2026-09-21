@@ -1,9 +1,21 @@
 'use strict';
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
+const GROQ_MODELS_URL = 'https://api.groq.com/openai/v1/models';
 const KEY_STORE = 'scuse_groq_key_v1';
 const HISTORY_STORE = 'scuse_history_v1';
+const MODEL_STORE = 'scuse_groq_model_v1';
+const MODEL_LIST_STORE = 'scuse_groq_models_v1';
+const MODEL_TTL = 6 * 60 * 60 * 1000;
+const MODEL_PRIORITY = [
+  'openai/gpt-oss-20b',
+  'openai/gpt-oss-120b',
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
+  'qwen/qwen3-32b',
+  'qwen/qwen3-8b',
+  'qwen/qwen2.5-72b',
+];
 const MAX_HISTORY = 25;
 
 const els = {
@@ -27,6 +39,8 @@ const els = {
   settingsBtn: document.getElementById('settingsBtn'),
   settingsModal: document.getElementById('settingsModal'),
   apiKeyInput: document.getElementById('apiKeyInput'),
+  modelWrap: document.getElementById('modelWrap'),
+  modelSelect: document.getElementById('modelSelect'),
   saveKeyBtn: document.getElementById('saveKeyBtn'),
   closeModalBtn: document.getElementById('closeModalBtn'),
   keyStatus: document.getElementById('keyStatus'),
@@ -97,17 +111,93 @@ function getKey() {
   return localStorage.getItem(KEY_STORE) || '';
 }
 
+// ---------- Models ----------
+const CHAT_EXCLUDE = /whisper|guard|orpheus|prompt/;
+
+function getStoredModel() {
+  return localStorage.getItem(MODEL_STORE) || '';
+}
+
+function setStoredModel(m) {
+  localStorage.setItem(MODEL_STORE, m);
+}
+
+function getCachedModels() {
+  try {
+    const raw = localStorage.getItem(MODEL_LIST_STORE);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (Date.now() - parsed.at > MODEL_TTL) return null;
+    return parsed.ids;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchModels(key, force) {
+  if (!force) {
+    const cached = getCachedModels();
+    if (cached && cached.length) return cached;
+  }
+  const res = await fetch(GROQ_MODELS_URL, { headers: { Authorization: 'Bearer ' + key } });
+  if (!res.ok) throw new Error('Impossibile leggere i modelli.');
+  const data = await res.json();
+  const ids = (data.data || []).map((m) => m.id).filter((id) => !CHAT_EXCLUDE.test(id));
+  localStorage.setItem(MODEL_LIST_STORE, JSON.stringify({ at: Date.now(), ids }));
+  return ids;
+}
+
+async function ensureModels(key) {
+  try {
+    return await fetchModels(key, false);
+  } catch {
+    return [];
+  }
+}
+
+function pickModel(ids) {
+  for (const m of MODEL_PRIORITY) {
+    if (ids.includes(m)) return m;
+  }
+  return ids[0] || '';
+}
+
+async function populateModels(key) {
+  els.modelWrap.classList.remove('hidden');
+  els.modelSelect.innerHTML = '<option value="">Caricamento…</option>';
+  els.modelSelect.disabled = true;
+  try {
+    const ids = await fetchModels(key, false);
+    if (!ids.length) throw new Error();
+    els.modelSelect.innerHTML = '';
+    ids.forEach((id) => {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = id;
+      els.modelSelect.appendChild(opt);
+    });
+    const chosen = getStoredModel() && ids.includes(getStoredModel()) ? getStoredModel() : pickModel(ids);
+    els.modelSelect.value = chosen;
+    if (chosen) setStoredModel(chosen);
+    els.modelSelect.disabled = false;
+  } catch {
+    els.modelSelect.innerHTML = '<option value="">Modelli non disponibili</option>';
+    els.modelSelect.disabled = true;
+  }
+}
+
 els.settingsBtn.addEventListener('click', openSettings);
 els.closeModalBtn.addEventListener('click', closeSettings);
 els.settingsModal.addEventListener('click', (e) => {
   if (e.target === els.settingsModal) closeSettings();
 });
 
-function openSettings() {
+async function openSettings() {
   setKeyStatus('', '');
   els.apiKeyInput.value = getKey();
   if (getKey()) {
     setKeyStatus('ok', 'Chiave già salvata su questo dispositivo.');
+    await populateModels(getKey());
   }
   els.settingsModal.classList.remove('hidden');
   els.apiKeyInput.focus();
@@ -122,6 +212,10 @@ function setKeyStatus(cls, msg) {
   els.keyStatus.textContent = msg;
 }
 
+els.modelSelect.addEventListener('change', () => {
+  if (els.modelSelect.value) setStoredModel(els.modelSelect.value);
+});
+
 els.saveKeyBtn.addEventListener('click', () => {
   const val = els.apiKeyInput.value.trim();
   if (!val) {
@@ -135,6 +229,7 @@ els.saveKeyBtn.addEventListener('click', () => {
   localStorage.setItem(KEY_STORE, val);
   setKeyStatus('ok', 'Chiave salvata. Ora puoi generare scuse!');
   showToast('Chiave salvata su questo dispositivo');
+  populateModels(val);
   setTimeout(closeSettings, 900);
 });
 
@@ -160,6 +255,22 @@ async function buildPrompt() {
   ];
 }
 
+async function callGroq(key, model, messages) {
+  return fetch(GROQ_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + key,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 1.0,
+      max_tokens: 220,
+    }),
+  });
+}
+
 async function generate() {
   const key = getKey();
   if (!key) {
@@ -172,19 +283,22 @@ async function generate() {
   els.genLabel.textContent = 'Genero…';
   try {
     const messages = await buildPrompt();
-    const res = await fetch(GROQ_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: 'Bearer ' + key,
-      },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages,
-        temperature: 1.0,
-        max_tokens: 220,
-      }),
-    });
+    const models = await ensureModels(key);
+    let model = getStoredModel();
+    if (!model || !models.includes(model)) {
+      model = pickModel(models) || 'openai/gpt-oss-20b';
+      if (models.includes(model)) setStoredModel(model);
+    }
+    let res = await callGroq(key, model, messages);
+
+    if (res.status === 404) {
+      const fresh = await ensureModels(key);
+      const fallback = pickModel(fresh);
+      if (fallback && fallback !== model) {
+        setStoredModel(fallback);
+        res = await callGroq(key, fallback, messages);
+      }
+    }
 
     if (res.status === 401 || res.status === 403) {
       throw new Error('Chiave API non valida. Controlla le impostazioni.');

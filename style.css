@@ -351,6 +351,24 @@ input[type="range"]::-moz-range-thumb {
   outline: none;
 }
 #apiKeyInput:focus { border-color: var(--accent); }
+.model-wrap { margin-top: 16px; }
+#modelSelect {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  padding: 13px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='8' viewBox='0 0 14 8'><path d='M1 1l6 6 6-6' stroke='%238b98ab' stroke-width='2' fill='none' stroke-linecap='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+}
+#modelSelect:focus { border-color: var(--accent); }
 .key-status { font-size: 13px; margin-top: 10px; }
 .key-status.ok { color: var(--green); }
 .key-status.err { color: var(--red); }

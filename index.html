@@ -96,6 +96,10 @@
     <p class="modal-text">La app usa il modello di intelligenza artificiale di <strong>Groq</strong> per generare le scuse.<br />Inserisci la tua chiave una sola volta: viene salvata solo <em>su questo dispositivo</em> e non viene mai pubblicata.</p>
     <label for="apiKeyInput" class="field-label">Chiave API Groq (<code>gsk_…</code>)</label>
     <input id="apiKeyInput" type="password" placeholder="gsk_…" autocomplete="off" />
+    <div id="modelWrap" class="model-wrap hidden">
+      <label class="field-label" for="modelSelect">Modello IA</label>
+      <select id="modelSelect"></select>
+    </div>
     <p id="keyStatus" class="key-status"></p>
     <div class="modal-actions">
       <button id="saveKeyBtn" class="primary">Salva chiave</button>

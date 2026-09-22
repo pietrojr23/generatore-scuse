@@ -3,7 +3,6 @@
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODELS_URL = 'https://api.groq.com/openai/v1/models';
 const KEY_STORE = 'scuse_groq_key_v1';
-const HISTORY_STORE = 'scuse_history_v1';
 const MODEL_STORE = 'scuse_groq_model_v1';
 const MODEL_LIST_STORE = 'scuse_groq_models_v1';
 const MODEL_TTL = 6 * 60 * 60 * 1000;
@@ -16,7 +15,6 @@ const MODEL_PRIORITY = [
   'qwen/qwen3-8b',
   'qwen/qwen2.5-72b',
 ];
-const MAX_HISTORY = 25;
 
 const els = {
   scenarioChips: document.getElementById('scenarioChips'),
@@ -34,9 +32,6 @@ const els = {
   resultText: document.getElementById('resultText'),
   copyBtn: document.getElementById('copyBtn'),
   regenBtn: document.getElementById('regenBtn'),
-  historySection: document.getElementById('historySection'),
-  historyList: document.getElementById('historyList'),
-  clearHistory: document.getElementById('clearHistory'),
   settingsBtn: document.getElementById('settingsBtn'),
   settingsModal: document.getElementById('settingsModal'),
   apiKeyInput: document.getElementById('apiKeyInput'),
@@ -402,7 +397,6 @@ function showResult(text) {
   els.resultText.textContent = text;
   els.resultBadge.textContent = lastCred + '% di credibilità';
   els.resultCard.classList.remove('hidden');
-  saveHistory(text, lastContext, lastCred);
   els.diagError.classList.add('hidden');
   els.resultText.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -431,50 +425,6 @@ function setLoading(active) {
   els.generateBtn.disabled = active;
 }
 
-// ---------- History ----------
-function getHistory() {
-  try {
-    return JSON.parse(localStorage.getItem(HISTORY_STORE)) || [];
-  } catch {
-    return [];
-  }
-}
-
-function saveHistory(text, context, cred) {
-  const list = getHistory();
-  list.unshift({ text, context, cred, at: Date.now() });
-  if (list.length > MAX_HISTORY) list.length = MAX_HISTORY;
-  localStorage.setItem(HISTORY_STORE, JSON.stringify(list));
-  renderHistory();
-}
-
-function renderHistory() {
-  const list = getHistory();
-  els.historySection.classList.toggle('hidden', list.length === 0);
-  els.historyList.innerHTML = '';
-  list.forEach((item) => {
-    const li = document.createElement('li');
-    li.textContent = item.text;
-    const meta = document.createElement('span');
-    meta.className = 'h-meta';
-    meta.textContent = contextLabel(item.context) + ' · ' + item.cred + '% · ' + new Date(item.at).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
-    li.appendChild(meta);
-    els.historyList.appendChild(li);
-  });
-}
-
-function contextLabel(ctx) {
-  if (ctx === 'Perché sono arrivato tardi?') return 'Ritardo';
-  if (ctx === 'Perché non posso uscire?') return 'Uscita';
-  return 'Custom';
-}
-
-els.clearHistory.addEventListener('click', () => {
-  localStorage.removeItem(HISTORY_STORE);
-  renderHistory();
-  showToast('Cronologia svuotata');
-});
-
 // ---------- Toast ----------
 let toastTimer = null;
 function showToast(msg) {
@@ -486,7 +436,6 @@ function showToast(msg) {
 
 // ---------- Init ----------
 els.year.textContent = new Date().getFullYear();
-renderHistory();
 
 if (!getKey()) {
   setTimeout(openSettings, 400);

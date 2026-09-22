@@ -320,12 +320,13 @@ async function callGroq(key, model, messages) {
       max_tokens: 220,
     }),
   });
+  let data = null;
   let detail = '';
   try {
-    const body = await res.json();
-    detail = (body && (body.error && body.error.message)) || '';
+    data = await res.json();
+    detail = (data && data.error && data.error.message) || '';
   } catch {}
-  return { res, detail };
+  return { res, data, detail };
 }
 
 function getCandidates(models) {
@@ -379,11 +380,14 @@ async function generate() {
         throw new Error('Limite richieste superato. Riprova tra un attimo.');
       }
       if (res.ok) {
-        const data = await res.json();
-        const excuse = data.choices[0].message.content.trim();
-        if (model) setStoredModel(model);
-        showResult(excuse);
-        return;
+        const choice = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+        const excuse = (choice || '').trim();
+        if (excuse) {
+          if (model) setStoredModel(model);
+          showResult(excuse);
+          return;
+        }
+        throw new Error('Risposta vuota da Groq.');
       }
       lastErr = detail || ('Errore ' + res.status);
     }

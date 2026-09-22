@@ -216,7 +216,22 @@ els.modelSelect.addEventListener('change', () => {
   if (els.modelSelect.value) setStoredModel(els.modelSelect.value);
 });
 
-els.saveKeyBtn.addEventListener('click', () => {
+async function testConnection(key) {
+  const msg = [{ role: 'user', content: 'Rispondi solo con la parola: ok' }];
+  let models = [];
+  try {
+    models = await fetchModels(key, true);
+  } catch {}
+  const candidates = getCandidates(models).slice(0, 5);
+  for (const model of candidates) {
+    const { res, detail } = await callGroq(key, model, msg);
+    if (res.ok) return { ok: true, model };
+    if (res.status === 401 || res.status === 403) return { ok: false, error: detail || 'chiave non valida' };
+  }
+  return { ok: false, error: 'nessun modello risponde' };
+}
+
+els.saveKeyBtn.addEventListener('click', async () => {
   const val = els.apiKeyInput.value.trim();
   if (!val) {
     setKeyStatus('err', 'Inserisci una chiave API valida.');
@@ -227,10 +242,19 @@ els.saveKeyBtn.addEventListener('click', () => {
     return;
   }
   localStorage.setItem(KEY_STORE, val);
-  setKeyStatus('ok', 'Chiave salvata. Ora puoi generare scuse!');
-  showToast('Chiave salvata su questo dispositivo');
+  els.saveKeyBtn.disabled = true;
+  setKeyStatus('', 'Test di connessione in corso…');
   populateModels(val);
-  setTimeout(closeSettings, 900);
+  const test = await testConnection(val);
+  els.saveKeyBtn.disabled = false;
+  if (test.ok) {
+    setStoredModel(test.model);
+    setKeyStatus('ok', 'Connessione riuscita! Modello attivo: ' + test.model);
+    showToast('Chiave salvata e connessa');
+    setTimeout(closeSettings, 1200);
+  } else {
+    setKeyStatus('err', 'Errore da Groq: ' + (test.error || 'sconosciuto') + '. La chiave è salvata, ma controllala e riprova.');
+  }
 });
 
 // ---------- Generation ----------
@@ -256,7 +280,7 @@ async function buildPrompt() {
 }
 
 async function callGroq(key, model, messages) {
-  return fetch(GROQ_URL, {
+  const res = await fetch(GROQ_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -269,6 +293,30 @@ async function callGroq(key, model, messages) {
       max_tokens: 220,
     }),
   });
+  let detail = '';
+  try {
+    const body = await res.json();
+    detail = (body && (body.error && body.error.message)) || '';
+  } catch {}
+  return { res, detail };
+}
+
+function getCandidates(models) {
+  const list = [];
+  const push = (m) => { if (m && !list.includes(m)) list.push(m); };
+  push(getStoredModel());
+  MODEL_PRIORITY.forEach(push);
+  push('groq/compound');
+  push('groq/compound-mini');
+  push('meta-llama/llama-4-scout-17b-16e-instruct');
+  push('meta-llama/llama-4-maverick-17b-128e-instruct');
+  push('qwen/qwen3-8b');
+  push('llama-3.1-8b-instant');
+  push('llama-3.3-70b-versatile');
+  models.forEach(push);
+  push('openai/gpt-oss-20b');
+  push('openai/gpt-oss-120b');
+  return list;
 }
 
 async function generate() {
@@ -284,35 +332,32 @@ async function generate() {
   try {
     const messages = await buildPrompt();
     const models = await ensureModels(key);
-    let model = getStoredModel();
-    if (!model || !models.includes(model)) {
-      model = pickModel(models) || 'openai/gpt-oss-20b';
-      if (models.includes(model)) setStoredModel(model);
-    }
-    let res = await callGroq(key, model, messages);
+    const candidates = getCandidates(models).slice(0, 6);
+    let lastErr = '';
 
-    if (res.status === 404) {
-      const fresh = await ensureModels(key);
-      const fallback = pickModel(fresh);
-      if (fallback && fallback !== model) {
-        setStoredModel(fallback);
-        res = await callGroq(key, fallback, messages);
+    for (const model of candidates) {
+      if (lastErr) {
+        els.genLabel.textContent = 'Provo ' + model.split('/').pop() + '…';
       }
+      const { res, detail } = await callGroq(key, model, messages);
+
+      if (res.status === 401 || res.status === 403) {
+        throw new Error('Chiave API non valida (' + (detail || res.status) + '). Controlla le impostazioni.');
+      }
+      if (res.status === 429) {
+        throw new Error('Limite richieste superato. Riprova tra un attimo.');
+      }
+      if (res.ok) {
+        const data = await res.json();
+        const excuse = data.choices[0].message.content.trim();
+        if (model) setStoredModel(model);
+        showResult(excuse);
+        return;
+      }
+      lastErr = detail || ('Errore ' + res.status);
     }
 
-    if (res.status === 401 || res.status === 403) {
-      throw new Error('Chiave API non valida. Controlla le impostazioni.');
-    }
-    if (res.status === 429) {
-      throw new Error('Troppe richieste per ora. Riprova tra un attimo.');
-    }
-    if (!res.ok) {
-      throw new Error('Errore del servizio (' + res.status + '). Riprova.');
-    }
-
-    const data = await res.json();
-    const excuse = data.choices[0].message.content.trim();
-    showResult(excuse);
+    throw new Error('Nessun modello disponibile. Ultimo errore: ' + lastErr);
   } catch (err) {
     showToast(err.message || 'Errore durante la generazione.');
   } finally {

@@ -371,7 +371,7 @@ async function generate() {
       if (lastErr) {
         els.genLabel.textContent = 'Provo ' + model.split('/').pop() + '…';
       }
-      const { res, detail } = await callGroq(key, model, messages);
+      const { res, data, detail } = await callGroq(key, model, messages);
 
       if (res.status === 401 || res.status === 403) {
         throw new Error('Chiave API non valida (' + (detail || res.status) + '). Controlla le impostazioni.');

@@ -217,7 +217,20 @@ els.modelSelect.addEventListener('change', () => {
   if (els.modelSelect.value) setStoredModel(els.modelSelect.value);
 });
 
+async function corsProbe() {
+  try {
+    const r = await fetch(GROQ_MODELS_URL, { method: 'GET' });
+    return { ok: true, status: r.status };
+  } catch (err) {
+    return { ok: false, reason: (err && err.message) || 'Load failed' };
+  }
+}
+
 async function testConnection(key) {
+  const probe = await corsProbe();
+  if (!probe.ok) {
+    return { ok: false, probe, error: 'Browser→Groq bloccato (CORS/rete). Serve il ponte server.', needsProxy: true };
+  }
   const msg = [{ role: 'user', content: 'Rispondi solo con la parola: ok' }];
   let models = [];
   try {
@@ -229,13 +242,13 @@ async function testConnection(key) {
     try {
       out = await callGroq(key, model, msg);
     } catch (err) {
-      return { ok: false, error: 'rete: ' + err.message };
+      return { ok: false, probe, error: 'rete: ' + err.message, needsProxy: false };
     }
     const { res, detail } = out;
-    if (res.ok) return { ok: true, model };
-    if (res.status === 401 || res.status === 403) return { ok: false, error: detail || 'chiave non valida' };
+    if (res.ok) return { ok: true, probe, model, error: '' };
+    if (res.status === 401 || res.status === 403) return { ok: false, probe, error: detail || 'chiave non valida', needsProxy: false };
   }
-  return { ok: false, error: 'nessun modello risponde' };
+  return { ok: false, probe, error: 'nessun modello risponde', needsProxy: false };
 }
 
 els.saveKeyBtn.addEventListener('click', async () => {
@@ -260,6 +273,10 @@ els.saveKeyBtn.addEventListener('click', async () => {
     showToast('Chiave salvata e connessa');
     setDiag('Connessione riuscita ✓  Modello: ' + test.model, true);
     setTimeout(closeSettings, 1200);
+  } else if (test.needsProxy) {
+    const msg = 'Il tuo dispositivo non riesce a contattare Groq: la richiesta è bloccata dal browser (CORS) o dalla rete.\n\nDettaglio test: ' + (test.probe.reason || test.error || 'Load failed') + '\n\nIn breve: per far parlare la pagina con Groq serve un piccolo server ponte gratuito. Senza quello, niente browser può usare Groq.';
+    setDiag(msg, false);
+    setKeyStatus('err', 'Test: ' + (test.probe.reason || test.error));
   } else {
     const msg = 'Errori ricevuti: ' + (test.error || 'sconosciuto') + '.\n\nSe vedi "Access denied / check your network settings" = Groq blocca la tua rete (VPN? Paese? Antivirus?). Se vedi "model not found" = modello non disponibile per il piano. La chiave è salvata; riprova o scrivimi il testo esatto.';
     setKeyStatus('err', msg.split('\n')[0]);
@@ -340,6 +357,10 @@ async function generate() {
   setLoading(true);
   els.genLabel.textContent = 'Genero…';
   try {
+    const probe = await corsProbe();
+    if (!probe.ok) {
+      throw new Error('Browser→Groq bloccato (CORS/rete): ' + probe.reason + '. Serve un piccolo "server ponte" gratuito per collegare la pagina a Groq.');
+    }
     const messages = await buildPrompt();
     const models = await ensureModels(key);
     const candidates = getCandidates(models).slice(0, 6);

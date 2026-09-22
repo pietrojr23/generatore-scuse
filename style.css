@@ -211,6 +211,24 @@ input[type="range"]::-moz-range-thumb {
 .generate-btn:disabled { opacity: .6; cursor: not-allowed; }
 .gen-icon { font-size: 20px; }
 
+.diag-error {
+  background: rgba(248, 81, 73, .1);
+  border: 1px solid rgba(248, 81, 73, .45);
+  color: #ffb4a8;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: -4px 0 14px;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.diag-ok {
+  background: rgba(63, 185, 80, .1);
+  border: 1px solid rgba(63, 185, 80, .45);
+  color: #7ee2a0;
+}
+
 /* Loading */
 .loading {
   display: flex;

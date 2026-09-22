@@ -28,6 +28,7 @@ const els = {
   generateBtn: document.getElementById('generateBtn'),
   genLabel: document.getElementById('genLabel'),
   loading: document.getElementById('loading'),
+  diagError: document.getElementById('diagError'),
   resultCard: document.getElementById('resultCard'),
   resultBadge: document.getElementById('resultBadge'),
   resultText: document.getElementById('resultText'),
@@ -224,7 +225,13 @@ async function testConnection(key) {
   } catch {}
   const candidates = getCandidates(models).slice(0, 5);
   for (const model of candidates) {
-    const { res, detail } = await callGroq(key, model, msg);
+    let out;
+    try {
+      out = await callGroq(key, model, msg);
+    } catch (err) {
+      return { ok: false, error: 'rete: ' + err.message };
+    }
+    const { res, detail } = out;
     if (res.ok) return { ok: true, model };
     if (res.status === 401 || res.status === 403) return { ok: false, error: detail || 'chiave non valida' };
   }
@@ -251,9 +258,12 @@ els.saveKeyBtn.addEventListener('click', async () => {
     setStoredModel(test.model);
     setKeyStatus('ok', 'Connessione riuscita! Modello attivo: ' + test.model);
     showToast('Chiave salvata e connessa');
+    setDiag('Connessione riuscita ✓  Modello: ' + test.model, true);
     setTimeout(closeSettings, 1200);
   } else {
-    setKeyStatus('err', 'Errore da Groq: ' + (test.error || 'sconosciuto') + '. La chiave è salvata, ma controllala e riprova.');
+    const msg = 'Errori ricevuti: ' + (test.error || 'sconosciuto') + '.\n\nSe vedi "Access denied / check your network settings" = Groq blocca la tua rete (VPN? Paese? Antivirus?). Se vedi "model not found" = modello non disponibile per il piano. La chiave è salvata; riprova o scrivimi il testo esatto.';
+    setKeyStatus('err', msg.split('\n')[0]);
+    setDiag(msg, false);
   }
 });
 
@@ -359,6 +369,7 @@ async function generate() {
 
     throw new Error('Nessun modello disponibile. Ultimo errore: ' + lastErr);
   } catch (err) {
+    setDiag(err.message || 'Errore durante la generazione.', false);
     showToast(err.message || 'Errore durante la generazione.');
   } finally {
     setLoading(false);
@@ -367,11 +378,18 @@ async function generate() {
 }
 
 // ---------- Result ----------
+function setDiag(msg, ok) {
+  els.diagError.textContent = msg;
+  els.diagError.classList.remove('hidden', 'diag-ok');
+  if (ok) els.diagError.classList.add('diag-ok');
+}
+
 function showResult(text) {
   els.resultText.textContent = text;
   els.resultBadge.textContent = lastCred + '% di credibilità';
   els.resultCard.classList.remove('hidden');
   saveHistory(text, lastContext, lastCred, lastTone);
+  els.diagError.classList.add('hidden');
   els.resultText.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 

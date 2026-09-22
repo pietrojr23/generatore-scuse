@@ -50,10 +50,8 @@ const els = {
 };
 
 let selectedScenario = 'Perché sono arrivato tardi?';
-let selectedTone = 'credibile';
 let lastContext = '';
 let lastCred = 50;
-let lastTone = 'credibile';
 
 const credHints = [
   [0, 'Ridicola: nemmeno tua nonna ci crederebbe.'],
@@ -63,12 +61,6 @@ const credHints = [
   [80, 'Convincente: pochi farebbero domande.'],
   [95, 'Fotorealistica: crederesti a tutto.'],
 ];
-
-const toneMap = {
-  credibile: 'stile sobrio, naturale e molto credibile',
-  ironica: 'stile ironico e spiritoso, con un pizzico di sarcasmo',
-  assurda: 'stile totalmente assurdo, surreale e divertente',
-};
 
 // ---------- Chips ----------
 document.querySelectorAll('#scenarioChips .chip').forEach((chip) => {
@@ -83,14 +75,6 @@ document.querySelectorAll('#scenarioChips .chip').forEach((chip) => {
       selectedScenario = chip.dataset.scenario;
       els.customWrap.classList.add('hidden');
     }
-  });
-});
-
-document.querySelectorAll('.chip[data-tone]').forEach((chip) => {
-  chip.addEventListener('click', () => {
-    document.querySelectorAll('.chip[data-tone]').forEach((c) => c.classList.remove('active'));
-    chip.classList.add('active');
-    selectedTone = chip.dataset.tone;
   });
 });
 
@@ -292,7 +276,6 @@ async function buildPrompt() {
   }
   lastContext = context;
   lastCred = Number(els.credSlider.value);
-  lastTone = selectedTone;
 
   let credDesc;
   if (lastCred >= 90) credDesc = 'estremamente credibile, quasi vera, nessuno sospetterebbe';
@@ -302,7 +285,7 @@ async function buildPrompt() {
 
   return [
     { role: 'system', content: 'Sei un maestro nel trovare scuse originali. Rispondi SOLO con il testo della scusa in italiano, al massimo 2-3 frasi, senza introduzioni, senza virgolette, senza spiegazioni.' },
-    { role: 'user', content: `Contesto: "${context}".\nCredibilità desiderata: ${lastCred}% (${credDesc}).\nStile: ${toneMap[lastTone]}.\nGenera la scusa perfetta.` },
+    { role: 'user', content: `Contesto: "${context}".\nCredibilità desiderata: ${lastCred}% (${credDesc}).\nGenera la scusa perfetta.` },
   ];
 }
 
@@ -419,7 +402,7 @@ function showResult(text) {
   els.resultText.textContent = text;
   els.resultBadge.textContent = lastCred + '% di credibilità';
   els.resultCard.classList.remove('hidden');
-  saveHistory(text, lastContext, lastCred, lastTone);
+  saveHistory(text, lastContext, lastCred);
   els.diagError.classList.add('hidden');
   els.resultText.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -457,9 +440,9 @@ function getHistory() {
   }
 }
 
-function saveHistory(text, context, cred, tone) {
+function saveHistory(text, context, cred) {
   const list = getHistory();
-  list.unshift({ text, context, cred, tone, at: Date.now() });
+  list.unshift({ text, context, cred, at: Date.now() });
   if (list.length > MAX_HISTORY) list.length = MAX_HISTORY;
   localStorage.setItem(HISTORY_STORE, JSON.stringify(list));
   renderHistory();
@@ -474,8 +457,7 @@ function renderHistory() {
     li.textContent = item.text;
     const meta = document.createElement('span');
     meta.className = 'h-meta';
-    const toneLabel = { credibile: 'Credibile', ironica: 'Ironica', assurda: 'Assurda' }[item.tone] || '';
-    meta.textContent = contextLabel(item.context) + ' · ' + item.cred + '% · ' + toneLabel + ' · ' + new Date(item.at).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
+    meta.textContent = contextLabel(item.context) + ' · ' + item.cred + '% · ' + new Date(item.at).toLocaleString('it-IT', { dateStyle: 'short', timeStyle: 'short' });
     li.appendChild(meta);
     els.historyList.appendChild(li);
   });

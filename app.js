@@ -285,18 +285,21 @@ async function buildPrompt() {
 }
 
 async function callGroq(key, model, messages) {
+  const body = {
+    model,
+    messages,
+    temperature: 1.0,
+    max_tokens: 600,
+  };
+  if (/^openai\/gpt-oss/.test(model)) body.reasoning_effort = 'low';
+  if (model.startsWith('qwen/')) body.reasoning_effort = 'none';
   const res = await fetch(GROQ_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: 'Bearer ' + key,
     },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: 1.0,
-      max_tokens: 220,
-    }),
+    body: JSON.stringify(body),
   });
   let data = null;
   let detail = '';
@@ -305,6 +308,11 @@ async function callGroq(key, model, messages) {
     detail = (data && data.error && data.error.message) || '';
   } catch {}
   return { res, data, detail };
+}
+
+function looksComplete(text) {
+  const t = text.trim();
+  return t.length > 0 && /[.!?…]["'"”»]?$/.test(t);
 }
 
 function getCandidates(models) {
@@ -363,12 +371,12 @@ async function generate() {
         if (res.ok) {
           const choice = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
           const excuse = (choice || '').trim();
-          if (excuse) {
+          if (excuse && looksComplete(excuse)) {
             if (model) setStoredModel(model);
             showResult(excuse);
             return;
           }
-          if (!lastErr) lastErr = 'Risposta vuota da Groq (riprovo)';
+          if (!lastErr) lastErr = excuse ? 'Risposta incompleta (riprovo)' : 'Risposta vuota da Groq (riprovo)';
         } else {
           lastErr = detail || ('Errore ' + res.status);
           break;

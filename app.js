@@ -371,25 +371,31 @@ async function generate() {
       if (lastErr) {
         els.genLabel.textContent = 'Provo ' + model.split('/').pop() + '…';
       }
-      const { res, data, detail } = await callGroq(key, model, messages);
 
-      if (res.status === 401 || res.status === 403) {
-        throw new Error('Chiave API non valida (' + (detail || res.status) + '). Controlla le impostazioni.');
-      }
-      if (res.status === 429) {
-        throw new Error('Limite richieste superato. Riprova tra un attimo.');
-      }
-      if (res.ok) {
-        const choice = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-        const excuse = (choice || '').trim();
-        if (excuse) {
-          if (model) setStoredModel(model);
-          showResult(excuse);
-          return;
+      let okAttempt = false;
+      for (let attempt = 0; attempt < 2 && !okAttempt; attempt++) {
+        const { res, data, detail } = await callGroq(key, model, messages);
+
+        if (res.status === 401 || res.status === 403) {
+          throw new Error('Chiave API non valida (' + (detail || res.status) + '). Controlla le impostazioni.');
         }
-        throw new Error('Risposta vuota da Groq.');
+        if (res.status === 429) {
+          throw new Error('Limite richieste superato. Riprova tra un attimo.');
+        }
+        if (res.ok) {
+          const choice = data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+          const excuse = (choice || '').trim();
+          if (excuse) {
+            if (model) setStoredModel(model);
+            showResult(excuse);
+            return;
+          }
+          if (!lastErr) lastErr = 'Risposta vuota da Groq (riprovo)';
+        } else {
+          lastErr = detail || ('Errore ' + res.status);
+          break;
+        }
       }
-      lastErr = detail || ('Errore ' + res.status);
     }
 
     throw new Error('Nessun modello disponibile. Ultimo errore: ' + lastErr);

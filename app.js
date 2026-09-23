@@ -390,18 +390,9 @@ function looksComplete(text) {
 function getCandidates(models) {
   const list = [];
   const push = (m) => { if (m && !list.includes(m)) list.push(m); };
-  push(getStoredModel());
-  MODEL_PRIORITY.forEach(push);
-  push('groq/compound');
-  push('groq/compound-mini');
-  push('meta-llama/llama-4-scout-17b-16e-instruct');
-  push('meta-llama/llama-4-maverick-17b-128e-instruct');
-  push('qwen/qwen3-8b');
-  push('llama-3.1-8b-instant');
-  push('llama-3.3-70b-versatile');
+  const stored = getStoredModel();
+  if (stored && models.includes(stored)) push(stored);
   models.forEach(push);
-  push('openai/gpt-oss-20b');
-  push('openai/gpt-oss-120b');
   return list;
 }
 
@@ -423,6 +414,7 @@ async function generate() {
     const { messages, maxTokens } = await buildPrompt();
     const models = await ensureModels(key);
     const candidates = getCandidates(models).slice(0, 6);
+    if (!candidates.length) throw new Error('Nenhum modelo disponível na sua conta. Verifique a chave API e os modelos disponíveis nas configurações.');
     let lastErr = '';
 
     for (const model of candidates) {

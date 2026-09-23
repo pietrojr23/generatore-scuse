@@ -307,23 +307,31 @@ async function buildPrompt() {
   else if (lastCred >= 35) credDesc = 'poco credibile, al limite, la gente storcerebbe il naso ma sorriderebbe';
   else credDesc = 'totalmente assurda, ridicola e ovviamente falsa, ma esilarante';
 
-  let lenDesc;
-  if (lastLen === 0) lenDesc = 'una frase breve e incisiva';
-  else if (lastLen === 1) lenDesc = '2-3 frasi bilanciate';
-  else lenDesc = '4 o più frasi con dettagli';
+  let lenConstraint;
+  if (lastLen === 0) lenConstraint = 'ESATTAMENTE 1 frase. Non scrivere più di una frase.';
+  else if (lastLen === 1) lenConstraint = 'ESATTAMENTE 2-3 frasi. Non scrivere più di 3 frasi.';
+  else lenConstraint = 'Fino a 5 frasi, senza superarle.';
 
-  return [
-    { role: 'system', content: 'Sei un maestro nel trovare scuse originali. Rispondi SOLO con il testo della scusa in italiano. Ogni volta devi dare una scusa DIVERSA dalle precedenti, mai ripetere lo stesso stile o struttura.' },
-    { role: 'user', content: `Contesto: "${context}".\nCredibilità desiderata: ${lastCred}% (${credDesc}).\nLunghezza: ${lenDesc}.\nGenerazione #${variantCount}: dai una scusa completamente diversa e originale, non simile alle risposte precedenti.` },
-  ];
+  let maxTokens;
+  if (lastLen === 0) maxTokens = 40;
+  else if (lastLen === 1) maxTokens = 80;
+  else maxTokens = 150;
+
+  return {
+    messages: [
+      { role: 'system', content: 'Sei un maestro nel trovare scuse originali in italiano. Rispondi SOLO con il testo della scusa, senza introduzioni, senza virgolette, senza spiegazioni, senza punti elenco. Non aggiungere nulla prima o dopo la scusa.' },
+      { role: 'user', content: `Contesto: "${context}".\nCredibilità desiderata: ${lastCred}% (${credDesc}).\n${lenConstraint}\nGenerazione #${variantCount}: dai UNA scusa completamente diversa e originale rispetto a tutte le risposte precedenti, mai stessa struttura o stile.` },
+    ],
+    maxTokens,
+  };
 }
 
-async function callGroq(key, model, messages) {
+async function callGroq(key, model, messages, maxTokens = 600) {
   const body = {
     model,
     messages,
     temperature: 1.0,
-    max_tokens: 600,
+    max_tokens: maxTokens,
   };
   if (/^openai\/gpt-oss/.test(model)) body.reasoning_effort = 'low';
   if (model.startsWith('qwen/')) body.reasoning_effort = 'none';
@@ -382,7 +390,7 @@ async function generate() {
     if (!probe.ok) {
       throw new Error('Browser→Groq bloccato (CORS/rete): ' + probe.reason + '. Serve un piccolo "server ponte" gratuito per collegare la pagina a Groq.');
     }
-    const messages = await buildPrompt();
+    const { messages, maxTokens } = await buildPrompt();
     const models = await ensureModels(key);
     const candidates = getCandidates(models).slice(0, 6);
     let lastErr = '';
@@ -394,7 +402,7 @@ async function generate() {
 
       let okAttempt = false;
       for (let attempt = 0; attempt < 2 && !okAttempt; attempt++) {
-        const { res, data, detail } = await callGroq(key, model, messages);
+        const { res, data, detail } = await callGroq(key, model, messages, maxTokens);
 
         if (res.status === 401 || res.status === 403) {
           throw new Error('Chiave API non valida (' + (detail || res.status) + '). Controlla le impostazioni.');

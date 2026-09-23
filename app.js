@@ -98,7 +98,7 @@ const lenHints = [
   [1, 'Un paio di frasi, chiara e diretta.'],
   [2, 'Più dettagli, più scenari coperti.'],
 ];
-const lenDescs = ['una frase breve e incisiva', '2-3 frasi bilanciate', '4 o più frasi con dettagli'];
+
 
 // ---------- Chips ----------
 document.querySelectorAll('#scenarioChips .chip').forEach((chip) => {
@@ -349,8 +349,8 @@ async function buildPrompt() {
 
   return {
     messages: [
-      { role: 'system', content: 'Sei un maestro nel trovare scuse originali in italiano. Rispondi SOLO con il testo della scusa, senza introduzioni, senza virgolette, senza spiegazioni, senza punti elenco. Non aggiungere nulla prima o dopo la scusa.' },
-      { role: 'user', content: `Contesto: "${context}".\nCredibilità desiderata: ${lastCred}% (${credDesc}).\n${lenConstraint}\nGenerazione #${variantCount}: dai UNA scusa completamente diversa e originale rispetto a tutte le risposte precedenti, mai stessa struttura o stile.` },
+      { role: 'system', content: 'Trova scuse originali in italiano. Rispondi: SOLO il testo, zero intro, zero virgolette, zero spiegazioni.' },
+      { role: 'user', content: `Ctx: "${context}".\nCred: ${lastCred}% (${credDesc}).\n${lenConstraint}\n#${variantCount}: scusa diversa da tutte as precedenti.` },
     ],
     maxTokens,
   };

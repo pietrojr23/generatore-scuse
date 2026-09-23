@@ -1,13 +1,14 @@
 {
   "name": "Generatore di Scuse",
   "short_name": "Scuse",
-  "description": "Genera scuse assurde o credibili con l'IA",
+  "description": "Genera scuse assurde o credibili con l'IA — anche senza internet!",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0d1117",
   "theme_color": "#0d1117",
+  "categories": ["entertainment", "utilities"],
   "icons": [
     {
       "src": "icons/icon-192.png",
@@ -27,5 +28,13 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "prefer_related_applications": false,
+  "share_target": {
+    "action": "/",
+    "method": "GET",
+    "params": {
+      "title": "text"
+    }
+  }
 }

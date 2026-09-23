@@ -52,14 +52,36 @@ let lastContext = '';
 let lastCred = 50;
 let lastLen = 1;
 let variantCount = 0;
+let useOffline = false;
 
-const lenLabels = ['Breve', 'Media', 'Lunga'];
-const lenHints = [
-  [0, 'Solo la frase essenziale, niente fronzoli.'],
-  [1, 'Un paio di frasi, chiara e diretta.'],
-  [2, 'Più dettagli, più scenari coperti.'],
-];
-const lenDescs = ['una frase breve e incisiva', '2-3 frasi bilanciate', '4 o più frasi con dettagli'];
+const OFFLINE_EXCUSES = {
+  'Perché sono arrivato tardy?': [
+    'Il meteo non era previsto così.',
+    'Il mio allarme era in modalità silenzioso.',
+    'Ho aiutato un vecchio a attraversare la strada.',
+    'La mia auto ha deciso di fare il rebelde.',
+    'Il trasporto pubblico ha scelto quel momento per fare strike.',
+    'Ho avuto un imprevisto familiare urgente.',
+    'Il mio orologio si era fermato.',
+    'La strada era bloccata da un evento sportivo.',
+  ],
+  'Perché non posso uscire?': [
+    'Ho una consegna importante da completare.',
+    'Il mio giardino ha bisogno di acqua adesso.',
+    'Sto aspettando un pacco che deve arrivare.',
+    'Mio fratello ha bisogno di me per una cosa.',
+    'Il mio computer sta scaricando qualcosa di importante.',
+    'Ho dimenticato di pagare una bolletta.',
+    'Devo controllare il forno.',
+  ],
+  custom: [
+    'Ho un impegnooo urgente.',
+    'Qualcuno ha bisogno di me in questo momento.',
+    'Sto gestendo una situazione che non può aspettare.',
+    'Ho un problema tecnico da risolvere.',
+    'La mia agenda è piena fino a sera.',
+  ],
+};
 
 const credHints = [
   [0, 'Ridicola: nemmeno tua nonna ci crederebbe.'],
@@ -69,6 +91,14 @@ const credHints = [
   [80, 'Convincente: pochi farebbero domande.'],
   [95, 'Fotorealistica: crederesti a tutto.'],
 ];
+
+const lenLabels = ['Breve', 'Media', 'Lunga'];
+const lenHints = [
+  [0, 'Solo la frase essenziale, niente fronzoli.'],
+  [1, 'Un paio di frasi, chiara e diretta.'],
+  [2, 'Più dettagli, più scenari coperti.'],
+];
+const lenDescs = ['una frase breve e incisiva', '2-3 frasi bilanciate', '4 o più frasi con dettagli'];
 
 // ---------- Chips ----------
 document.querySelectorAll('#scenarioChips .chip').forEach((chip) => {
@@ -378,8 +408,8 @@ function getCandidates(models) {
 async function generate() {
   const key = getKey();
   if (!key) {
-    openSettings();
-    setKeyStatus('err', 'Prima inserisci la tua chiave API Groq (una sola volta).');
+    useOffline = true;
+    generateOffline();
     return;
   }
 
@@ -436,6 +466,16 @@ async function generate() {
   }
 }
 
+// ---------- Offline Mode ----------
+function generateOffline() {
+  const scenarios = OFFLINE_EXCUSES[selectedScenario] || OFFLINE_EXCUSES.custom;
+  const excuse = scenarios[Math.floor(Math.random() * scenarios.length)];
+  showResult(excuse);
+  setLoading(false);
+  els.genLabel.textContent = '🎲 Genera scusa';
+  showToast('Modo offline — scusa casuale');
+}
+
 // ---------- Result ----------
 function setDiag(msg, ok) {
   els.diagError.textContent = msg;
@@ -447,8 +487,69 @@ function showResult(text) {
   els.resultText.textContent = text;
   els.resultBadge.textContent = lastCred + '% credibilità · ' + lenLabels[lastLen];
   els.resultCard.classList.remove('hidden');
+  els.resultCard.classList.remove('show');
+  void els.resultCard.offsetWidth;
+  els.resultCard.classList.add('show');
   els.diagError.classList.add('hidden');
+  els.resultText.classList.remove('show');
+  void els.resultText.offsetWidth;
+  els.resultText.classList.add('show');
   els.resultText.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  spawnConfetti();
+}
+
+// ---------- Confetti ----------
+function spawnConfetti() {
+  const canvas = document.getElementById('confettiCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.classList.remove('hidden');
+  const particles = [];
+  const colors = ['#6c8cff', '#9b6cff', '#3fb950', '#f85149', '#e3b341', '#ff7eb3'];
+  for (let i = 0; i < 60; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height - canvas.height,
+      w: Math.random() * 10 + 4,
+      h: Math.random() * 6 + 2,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      vx: (Math.random() - 0.5) * 4,
+      vy: Math.random() * 4 + 2,
+      rotation: Math.random() * 360,
+      rotSpeed: (Math.random() - 0.5) * 10,
+      opacity: 1,
+    });
+  }
+  let frame = 0;
+  function animate() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach((p) => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rotation += p.rotSpeed;
+      p.opacity -= 0.015;
+      if (p.opacity <= 0) return;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rotation * Math.PI) / 180);
+      ctx.globalAlpha = p.opacity;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+    frame++;
+    if (frame < 80) requestAnimationFrame(animate);
+    else canvas.classList.add('hidden');
+  }
+  animate();
+}
+
+// ---------- Loading ----------
+function setLoading(active) {
+  els.loading.classList.toggle('hidden', !active);
+  els.generateBtn.disabled = active;
+  els.generateBtn.classList.toggle('loading', active);
 }
 
 els.generateBtn.addEventListener('click', generate);

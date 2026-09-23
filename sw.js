@@ -1,15 +1,17 @@
 'use strict';
 
-const VERSION = 'scuse-v2.1';
+const VERSION = 'scuse-v2.2';
 const ASSETS = [
   './',
   './index.html',
-  './style.css?v=2.1',
-  './app.js?v=2.1',
+  './style.css?v=2.2',
+  './app.js?v=2.2',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
 ];
+
+const OFFLINE_URLS = ['./', './index.html', './style.css', './app.js', './manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -43,6 +45,10 @@ self.addEventListener('fetch', (event) => {
         }
         return res;
       });
-    }).catch(() => caches.match('./index.html'))
+    }).catch(() => {
+      const offlineUrl = OFFLINE_URLS.find((u) => req.url.includes(u));
+      if (offlineUrl) return caches.match(offlineUrl);
+      return caches.match('./index.html');
+    })
   );
 });

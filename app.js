@@ -418,7 +418,7 @@ async function generate() {
     let lastErr = '';
 
     for (const model of candidates) {
-      if (lastErr && !lastErr.includes('non esiste')) {
+      if (lastErr && !lastErr.match(/does not exist|not found|404/i)) {
         els.genLabel.textContent = 'Provo ' + model.split('/').pop() + '…';
       }
 

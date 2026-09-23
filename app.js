@@ -418,7 +418,7 @@ async function generate() {
     let lastErr = '';
 
     for (const model of candidates) {
-      if (lastErr) {
+      if (lastErr && !lastErr.includes('non esiste')) {
         els.genLabel.textContent = 'Provo ' + model.split('/').pop() + '…';
       }
 
@@ -443,6 +443,7 @@ async function generate() {
           if (!lastErr) lastErr = excuse ? 'Risposta incompleta (riprovo)' : 'Risposta vuota da Groq (riprovo)';
         } else {
           lastErr = detail || ('Errore ' + res.status);
+          if (/does not exist|not found|404|access/i.test(lastErr)) continue;
           break;
         }
       }

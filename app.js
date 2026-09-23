@@ -23,6 +23,9 @@ const els = {
   credSlider: document.getElementById('credSlider'),
   credValue: document.getElementById('credValue'),
   credHint: document.getElementById('credHint'),
+  lenSlider: document.getElementById('lenSlider'),
+  lenValue: document.getElementById('lenValue'),
+  lenHint: document.getElementById('lenHint'),
   generateBtn: document.getElementById('generateBtn'),
   genLabel: document.getElementById('genLabel'),
   loading: document.getElementById('loading'),
@@ -47,6 +50,15 @@ const els = {
 let selectedScenario = 'Perché sono arrivato tardi?';
 let lastContext = '';
 let lastCred = 50;
+let lastLen = 1;
+
+const lenLabels = ['Breve', 'Media', 'Lunga'];
+const lenHints = [
+  [0, 'Solo la frase essenziale, niente fronzoli.'],
+  [1, 'Un paio di frasi, chiara e diretta.'],
+  [2, 'Più dettagli, più scenari coperti.'],
+];
+const lenDescs = ['una frase breve e incisiva', '2-3 frasi bilanciate', '4 o più frasi con dettagli'];
 
 const credHints = [
   [0, 'Ridicola: nemmeno tua nonna ci crederebbe.'],
@@ -85,6 +97,20 @@ function updateSlider() {
   els.credHint.textContent = hint;
 }
 updateSlider();
+
+// ---------- Length Slider ----------
+els.lenSlider.addEventListener('input', updateLen);
+function updateLen() {
+  const v = Number(els.lenSlider.value);
+  lastLen = v;
+  els.lenValue.textContent = lenLabels[v];
+  let hint = lenHints[lenHints.length - 1][1];
+  for (const [min, text] of lenHints) {
+    if (v >= min) hint = text;
+  }
+  els.lenHint.textContent = hint;
+}
+updateLen();
 
 // ---------- Key ----------
 function getKey() {
@@ -278,9 +304,14 @@ async function buildPrompt() {
   else if (lastCred >= 35) credDesc = 'poco credibile, al limite, la gente storcerebbe il naso ma sorriderebbe';
   else credDesc = 'totalmente assurda, ridicola e ovviamente falsa, ma esilarante';
 
+  let lenDesc;
+  if (lastLen === 0) lenDesc = 'una frase breve e incisiva';
+  else if (lastLen === 1) lenDesc = '2-3 frasi bilanciate';
+  else lenDesc = '4 o più frasi con dettagli';
+
   return [
-    { role: 'system', content: 'Sei un maestro nel trovare scuse originali. Rispondi SOLO con il testo della scusa in italiano, al massimo 2-3 frasi, senza introduzioni, senza virgolette, senza spiegazioni.' },
-    { role: 'user', content: `Contesto: "${context}".\nCredibilità desiderata: ${lastCred}% (${credDesc}).\nGenera la scusa perfetta.` },
+    { role: 'system', content: 'Sei un maestro nel trovare scuse originali. Rispondi SOLO con il testo della scusa in italiano.' },
+    { role: 'user', content: `Contesto: "${context}".\nCredibilità desiderata: ${lastCred}% (${credDesc}).\nLunghezza: ${lenDesc} (${lastLen+1} livello).\nGenera la scusa perfetta.` },
   ];
 }
 
@@ -403,7 +434,7 @@ function setDiag(msg, ok) {
 
 function showResult(text) {
   els.resultText.textContent = text;
-  els.resultBadge.textContent = lastCred + '% di credibilità';
+  els.resultBadge.textContent = lastCred + '% credibilità · ' + lenLabels[lastLen];
   els.resultCard.classList.remove('hidden');
   els.diagError.classList.add('hidden');
   els.resultText.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

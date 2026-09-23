@@ -51,6 +51,7 @@ let selectedScenario = 'Perché sono arrivato tardi?';
 let lastContext = '';
 let lastCred = 50;
 let lastLen = 1;
+let variantCount = 0;
 
 const lenLabels = ['Breve', 'Media', 'Lunga'];
 const lenHints = [
@@ -297,6 +298,8 @@ async function buildPrompt() {
   }
   lastContext = context;
   lastCred = Number(els.credSlider.value);
+  lastLen = Number(els.lenSlider.value);
+  variantCount++;
 
   let credDesc;
   if (lastCred >= 90) credDesc = 'estremamente credibile, quasi vera, nessuno sospetterebbe';
@@ -310,8 +313,8 @@ async function buildPrompt() {
   else lenDesc = '4 o più frasi con dettagli';
 
   return [
-    { role: 'system', content: 'Sei un maestro nel trovare scuse originali. Rispondi SOLO con il testo della scusa in italiano.' },
-    { role: 'user', content: `Contesto: "${context}".\nCredibilità desiderata: ${lastCred}% (${credDesc}).\nLunghezza: ${lenDesc} (${lastLen+1} livello).\nGenera la scusa perfetta.` },
+    { role: 'system', content: 'Sei un maestro nel trovare scuse originali. Rispondi SOLO con il testo della scusa in italiano. Ogni volta devi dare una scusa DIVERSA dalle precedenti, mai ripetere lo stesso stile o struttura.' },
+    { role: 'user', content: `Contesto: "${context}".\nCredibilità desiderata: ${lastCred}% (${credDesc}).\nLunghezza: ${lenDesc}.\nGenerazione #${variantCount}: dai una scusa completamente diversa e originale, non simile alle risposte precedenti.` },
   ];
 }
 
